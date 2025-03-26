@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Result Details - Data Scraper{% endblock %}
+
+{% block page_title %}Result Details{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group">
+    {% if job %}
+    <a href="{{ url_for('results.list', job_id=job.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Results
+    </a>
+    <a href="{{ url_for('jobs.view', job_id=job.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-tasks"></i> View Job
+    </a>
+    {% else %}
+    <a href="{{ url_for('results.list') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Results
+    </a>
+    {% endif %}
+    <a href="{{ url_for('results.analyze', result_id=result.id) }}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-chart-pie"></i> Analyze
+    </a>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-download"></i> Export
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('results.export_result', result_id=result.id, format='json') }}">JSON</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('results.export_result', result_id=result.id, format='csv') }}">CSV</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('results.export_result', result_id=result.id, format='excel') }}">Excel</a></li>
+        </ul>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete()">
+        <i class="fas fa-trash"></i> Delete
+    </button>
+    <form id="delete-form" action="{{ url_for('results.delete_result', result_id=result.id) }}" method="post" class="d-none"></form>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <!-- Result Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Result Information
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="detail-label">ID</span>
+                        <span>{{ result.id }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="detail-label">Type</span>
+                        <span>{{ result.type }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="detail-label">Created</span>
+                        <span>{{ result.created_at }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="detail-label">Item Count</span>
+                        <span class="badge bg-primary rounded-pill">{{ result.data|length if result.data else 0 }}</span>
+                    </li>
+                    {% if job %}
+                    <li class="list-group-item">
+                        <span class="detail-label">Job</span>
+                        <div class="mt-2">
+                            <a href="{{ url_for('jobs.view', job_id=job.id) }}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="fas fa-tasks"></i> {{ job.name }}
+                            </a>
+                        </div>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Result Summary -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-chart-pie"></i> Summary
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <canvas id="data-type-chart" width="100%" height="200"></canvas>
+                </div>
+                <div class="text-center">
+                    <a href="{{ url_for('results.analyze', result_id=result.id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-chart-bar"></i> View Complete Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Result Data -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-table"></i> Result Data</span>
+                <div class="input-group input-group-sm" style="width: 200px;">
+                    <input type="text" id="data-search" class="form-control" placeholder="Search...">
+                    <button class="btn btn-outline-secondary" type="button" id="search-button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if result.data and result.data|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover" id="result-data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                {% for key in result.data[0].keys() %}
+                                <th>{{ key }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in result.data %}
+                            <tr class="result-item">
+                                <td>{{ loop.index }}</td>
+                                {% for key, value in item.items() %}
+                                <td>
+                                    {% if value is mapping %}
+                                    <pre class="mb-0"><code>{{ value|tojson(indent=2) }}</code></pre>
+                                    {% elif value is sequence and value is not string %}
+                                    <pre class="mb-0"><code>{{ value|tojson(indent=2) }}</code></pre>
+                                    {% else %}
+                                    {{ value }}
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+                        </li>
+                        <li class="page-item active" aria-current="page">
+                            <a class="page-link" href="#">1</a>
+                        </li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="#">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-database text-muted fa-3x mb-3"></i>
+                    <p class="lead">No data available in this result.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script>
+// Confirm result deletion
+function confirmDelete() {
+    if (confirm('Are you sure you want to delete this result? This action cannot be undone.')) {
+        document.getElementById('delete-form').submit();
+    }
+}
+
+// Initialize charts
+$(document).ready(function() {
+    // Create data type chart if data exists
+    {% if result.data and result.data|length > 0 %}
+    const dataTypeCtx = document.getElementById('data-type-chart').getContext('2d');
+    
+    // In a real application, this would analyze the actual data types
+    // For demonstration, we'll use a placeholder chart
+    const dataTypeChart = new Chart(dataTypeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Text', 'Numbers', 'Dates', 'URLs', 'Other'],
+            datasets: [{
+                data: [
+                    {{ result.data|length * 0.4 }}, 
+                    {{ result.data|length * 0.25 }}, 
+                    {{ result.data|length * 0.15 }}, 
+                    {{ result.data|length * 0.1 }}, 
+                    {{ result.data|length * 0.1 }}
+                ],
+                backgroundColor: [
+                    '#4a6bff',
+                    '#28a745',
+                    '#ffc107',
+                    '#17a2b8',
+                    '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Search functionality
+    $('#data-search').on('keyup', function() {
+        const value = $(this).val().toLowerCase();
+        $('.result-item').filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+    });
+});
+</script>
+{% endblock %}

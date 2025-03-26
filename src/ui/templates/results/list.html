@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Results - Data Scraper{% endblock %}
+
+{% block page_title %}
+{% if job %}
+Results for {{ job.name }}
+{% else %}
+All Results
+{% endif %}
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-toolbar mb-2 mb-md-0">
+    {% if job %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('jobs.view', job_id=job.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Job
+        </a>
+    </div>
+    {% endif %}
+    <div class="btn-group me-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-file-export"></i> Export
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="exportSelectedResults('json')">Export as JSON</a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportSelectedResults('csv')">Export as CSV</a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportSelectedResults('excel')">Export as Excel</a></li>
+        </ul>
+    </div>
+    <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="compareSelectedResults()">
+            <i class="fas fa-chart-bar"></i> Compare
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form id="results-form">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="select-all" onchange="toggleAllResults()">
+                                </div>
+                            </th>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Items</th>
+                            {% if not job %}
+                            <th>Job</th>
+                            {% endif %}
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if results %}
+                            {% for result in results %}
+                            <tr>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input result-checkbox" type="checkbox" name="result_id" value="{{ result.id }}">
+                                    </div>
+                                </td>
+                                <td>{{ result.id }}</td>
+                                <td>{{ result.type }}</td>
+                                <td>{{ result.data|length if result.data else 0 }}</td>
+                                {% if not job %}
+                                <td>
+                                    {% if result.job_id %}
+                                    <a href="{{ url_for('jobs.view', job_id=result.job_id) }}">
+                                        {{ result.job_name if result.job_name else result.job_id }}
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                                <td>{{ result.created_at }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('results.view', result_id=result.id) }}" class="btn btn-outline-primary" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('results.analyze', result_id=result.id) }}" class="btn btn-outline-info" title="Analyze">
+                                            <i class="fas fa-chart-pie"></i>
+                                        </a>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Export">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{{ url_for('results.export_result', result_id=result.id, format='json') }}">JSON</a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('results.export_result', result_id=result.id, format='csv') }}">CSV</a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('results.export_result', result_id=result.id, format='excel') }}">Excel</a></li>
+                                            </ul>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger" title="Delete" onclick="confirmDelete('{{ result.id }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <form id="delete-form-{{ result.id }}" action="{{ url_for('results.delete_result', result_id=result.id) }}" method="post" class="d-none"></form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="{% if job %}6{% else %}7{% endif %}" class="text-center">No results found</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle all result checkboxes
+function toggleAllResults() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const resultCheckboxes = document.querySelectorAll('.result-checkbox');
+    
+    resultCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+}
+
+// Export selected results
+function exportSelectedResults(format) {
+    const selectedResults = getSelectedResults();
+    
+    if (selectedResults.length === 0) {
+        alert('Please select at least one result to export');
+        return;
+    }
+    
+    if (selectedResults.length === 1) {
+        // If only one result is selected, redirect to the export URL
+        window.location.href = `/results/export/${selectedResults[0]}?format=${format}`;
+    } else {
+        // In a real application, this would handle multiple result export
+        alert('Exporting multiple results is not implemented in this demo');
+    }
+}
+
+// Compare selected results
+function compareSelectedResults() {
+    const selectedResults = getSelectedResults();
+    
+    if (selectedResults.length < 2) {
+        alert('Please select at least two results to compare');
+        return;
+    }
+    
+    // Build the URL with the selected result IDs
+    const url = '/results/compare?' + selectedResults.map(id => `result_id=${id}`).join('&');
+    window.location.href = url;
+}
+
+// Get selected result IDs
+function getSelectedResults() {
+    const checkboxes = document.querySelectorAll('.result-checkbox:checked');
+    return Array.from(checkboxes).map(checkbox => checkbox.value);
+}
+
+// Confirm result deletion
+function confirmDelete(resultId) {
+    if (confirm('Are you sure you want to delete this result? This action cannot be undone.')) {
+        document.getElementById(`delete-form-${resultId}`).submit();
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,75 @@
+# src/config/advanced_processing_config.json
+{
+  "ai_extractor": {
+    "language": "en",
+    "use_gpu": false,
+    "models": {
+      "nlp": "en_core_web_md",
+      "classification": "distilbert-base-uncased"
+    }
+  },
+  
+  "pattern_recognizer": {
+    "confidence_threshold": 0.75,
+    "fuzzy_threshold": 85,
+    "custom_patterns": {
+      "product_code": {
+        "patterns": [
+          "\\b[A-Z]{2,3}-\\d{4,6}\\b",
+          "\\b[A-Z]{2,3}\\d{4,6}\\b"
+        ],
+        "confidence": 0.8
+      },
+      "invoice_number": {
+        "patterns": [
+          "\\bINV-\\d{5,9}\\b",
+          "\\bINV\\d{5,9}\\b"
+        ],
+        "confidence": 0.9
+      }
+    }
+  },
+  
+  "data_classifier": {
+    "model_dir": "./models/classifiers",
+    "default_algorithm": "random_forest",
+    "training": {
+      "min_samples": 50,
+      "validation_split": 0.2,
+      "cross_validation": 5
+    }
+  },
+  
+  "batch_processor": {
+    "max_workers": 4,
+    "use_processes": true,
+    "chunk_size": 100,
+    "log_dir": "./logs/batch_jobs",
+    "temp_dir": "./temp/batch_processing",
+    "result_retention_days": 7
+  },
+  
+  "processing_presets": {
+    "document_analysis": {
+      "extract_entities": true,
+      "extract_patterns": true,
+      "extract_topics": true,
+      "extract_key_phrases": true,
+      "classify": true,
+      "classifier_name": "document_classifier"
+    },
+    "contact_extraction": {
+      "extract_entities": true,
+      "extract_patterns": true,
+      "custom_pattern_types": ["email", "phone", "url", "person_name"],
+      "classify": false
+    },
+    "business_document": {
+      "extract_entities": true,
+      "extract_patterns": true,
+      "custom_pattern_types": ["invoice_number", "date", "company_name", "address"],
+      "classify": true,
+      "classifier_name": "business_doc_classifier"
+    }
+  }
+}

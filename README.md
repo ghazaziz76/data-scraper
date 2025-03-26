@@ -40,3 +40,29 @@ Contributing
 Contributions are welcome! Please read the contributing guidelines.
 
 # data-scraper
+# Create the extractor
+extractor = EnhancedWebExtractor(
+    use_selenium=True,  # Use Selenium for JavaScript-rendered pages
+    headless=True,      # Run in headless mode
+    rate_limit=2.0      # Wait 2 seconds between requests
+)
+
+try:
+    # Extract multiple items from a page with pagination
+    products = extractor.extract_multiple(
+        url='https://example.com/products',
+        container_selector='.product',
+        field_selectors={
+            'id': '.product-id',
+            'name': '.product-name',
+            'price': '.product-price'
+        },
+        pagination_selector='.next-page:not(.disabled)',
+        max_pages=3  # Extract up to 3 pages
+    )
+    
+    print(f"Extracted {len(products)} products")
+    
+finally:
+    # Always close the extractor to release resources
+    extractor.close()
